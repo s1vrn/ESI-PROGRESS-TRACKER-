@@ -32,6 +32,7 @@ export default function TemplateManagement() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [expandedAssignmentId, setExpandedAssignmentId] = useState<string | null>(null)
   
   // Form state
   const [title, setTitle] = useState('')
@@ -66,6 +67,7 @@ export default function TemplateManagement() {
     setDueDate('')
     setShowCreateForm(false)
     setEditingId(null)
+    setExpandedAssignmentId(null)
   }
 
   const startEdit = (template: AssignmentTemplate) => {
@@ -77,6 +79,7 @@ export default function TemplateManagement() {
     setRequirements(template.requirements && template.requirements.length > 0 ? template.requirements : [''])
     setDueDate(template.dueDate || '')
     setShowCreateForm(true)
+    setExpandedAssignmentId(template.id)
   }
 
   const handleSubmit = async () => {
@@ -139,6 +142,7 @@ export default function TemplateManagement() {
         throw new Error(error.error || 'Failed to delete template')
       }
       await fetchTemplates()
+      setExpandedAssignmentId(null)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete template')
     } finally {
@@ -162,10 +166,19 @@ export default function TemplateManagement() {
     }
   }
 
+  const toggleExpanded = (id: string) => {
+    setExpandedAssignmentId(prev => (prev === id ? null : id))
+  }
+
   return (
     <div className="template-management">
       <div className="template-management-header">
-        <h2 className="template-management-title">📋 Assignment Templates</h2>
+        <div className="template-management-title-group">
+          <h2 className="template-management-title">Assignments</h2>
+          <p className="template-management-subtitle">
+            Curate ready-to-use briefs students can start from instantly.
+          </p>
+        </div>
         <button
           className="btn-create-template"
           onClick={() => {
@@ -173,7 +186,7 @@ export default function TemplateManagement() {
             setShowCreateForm(true)
           }}
         >
-          {showCreateForm ? '✕ Cancel' : '+ Create Template'}
+          {showCreateForm ? '✕ Cancel' : '+ New Assignment'}
         </button>
       </div>
 
@@ -261,7 +274,7 @@ export default function TemplateManagement() {
             onClick={handleSubmit}
             disabled={loading || !title.trim()}
           >
-            {loading ? 'Saving...' : editingId ? 'Update Template' : 'Create Template'}
+            {loading ? 'Saving...' : editingId ? 'Update Assignment' : 'Create Assignment'}
           </button>
         </div>
       )}
@@ -270,62 +283,79 @@ export default function TemplateManagement() {
         {templates.length === 0 ? (
           <div className="templates-empty">
             <div className="templates-empty-icon">📋</div>
-            <p>No templates yet. Create your first template!</p>
+            <p>No assignments yet. Draft one above to get students started quickly.</p>
           </div>
         ) : (
           templates.map(template => (
-            <div key={template.id} className="template-card">
-              <div className="template-card-header">
-                <div className="template-card-info">
-                  <h3 className="template-card-title">{template.title}</h3>
-                  {template.description && (
-                    <p className="template-card-description">{template.description}</p>
-                  )}
-                  <div className="template-card-meta">
-                    <span className="template-type-badge">{template.type.toUpperCase()}</span>
-                    {template.dueDate && (
-                      <>
-                        <span>•</span>
-                        <span>Due: {new Date(template.dueDate).toLocaleDateString()}</span>
-                      </>
-                    )}
-                    <span>•</span>
-                    <span>Created: {new Date(template.createdAt).toLocaleDateString()}</span>
+            <div
+              key={template.id}
+              className={`assignment-card ${expandedAssignmentId === template.id ? 'expanded' : ''}`}
+            >
+              <button
+                type="button"
+                className="assignment-card-compact"
+                onClick={() => toggleExpanded(template.id)}
+              >
+                <div className="assignment-card-top">
+                  <div className="assignment-card-title-group">
+                    <h3 className="assignment-card-title">{template.title}</h3>
+                    <div className="assignment-card-meta">
+                      <span className={`assignment-type-chip type-${template.type}`}>
+                        {template.type.toUpperCase()}
+                      </span>
+                      {template.dueDate && (
+                        <span className="assignment-date">Due {new Date(template.dueDate).toLocaleDateString()}</span>
+                      )}
+                      <span className="assignment-date">Created {new Date(template.createdAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
+                  <span className="assignment-expand-icon">
+                    {expandedAssignmentId === template.id ? '▼' : '▶'}
+                  </span>
                 </div>
-                {template.createdBy === auth?.userId && (
-                  <div className="template-card-actions">
-                    <button
-                      className="btn-edit-template"
-                      onClick={() => startEdit(template)}
-                      disabled={loading}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      className="btn-delete-template"
-                      onClick={() => handleDelete(template.id)}
-                      disabled={loading}
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
+                {template.description && (
+                  <p className="assignment-card-description">{template.description}</p>
                 )}
-              </div>
-              {template.instructions && (
-                <div className="template-instructions">
-                  <strong>Instructions:</strong>
-                  <p>{template.instructions}</p>
-                </div>
-              )}
-              {template.requirements && template.requirements.length > 0 && (
-                <div className="template-requirements">
-                  <strong>Requirements:</strong>
-                  <ul>
-                    {template.requirements.map((req, index) => (
-                      <li key={index}>{req}</li>
-                    ))}
-                  </ul>
+              </button>
+
+              {expandedAssignmentId === template.id && (
+                <div className="assignment-card-details">
+                  {template.createdBy === auth?.userId && (
+                    <div className="assignment-card-actions">
+                      <button
+                        className="btn-edit-template"
+                        onClick={() => startEdit(template)}
+                        disabled={loading}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        className="btn-delete-template"
+                        onClick={() => handleDelete(template.id)}
+                        disabled={loading}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  )}
+
+                  {template.instructions && (
+                    <div className="assignment-detail-block">
+                      <h4>Instructions</h4>
+                      <p>{template.instructions}</p>
+                    </div>
+                  )}
+
+                  {template.requirements && template.requirements.length > 0 && (
+                    <div className="assignment-detail-block">
+                      <h4>Requirements</h4>
+                      <ul>
+                        {template.requirements.map((req, index) => (
+                          <li key={index}>{req}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
