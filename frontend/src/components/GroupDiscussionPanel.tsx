@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getAuth } from '../pages/Login'
 
 type Group = {
@@ -82,6 +82,7 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
   const [postingMessage, setPostingMessage] = useState(false)
   const [threadSearch, setThreadSearch] = useState('')
   const [userDirectory, setUserDirectory] = useState<Record<string, { name?: string; initials: string }>>({})
+  const chatLogRef = useRef<HTMLDivElement | null>(null)
 
   const groupSubmissions = useMemo(() => {
     return submissions.filter(sub => sub.groupId === group.id)
@@ -172,6 +173,11 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, selectedThreadId, group.id])
+
+  useEffect(() => {
+    if (!chatLogRef.current) return
+    chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight
+  }, [messagesState, selectedThreadId])
 
   async function fetchThreads(silent = false) {
     if (!auth) return
@@ -503,7 +509,7 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
               )}
             </header>
 
-            <div className="chat-log">
+            <div className="chat-log" ref={chatLogRef}>
               {loadingMessages && !currentMessages.length ? (
                 <div className="chat-empty">Loading messages…</div>
               ) : currentMessages.length === 0 ? (
