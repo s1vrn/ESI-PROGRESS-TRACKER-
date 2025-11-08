@@ -1,56 +1,89 @@
 ESI Progress Tracker
+====================
 
-A collaborative web platform for students and professors to organize, monitor, and evaluate academic work.
+A full-stack workspace that helps ESI students and professors organise deliverables, collaborate on feedback, and monitor academic progress in real time.
 
-## Features
-- Student dashboard: upload work (PDF/ZIP/links), notes, milestones, progress timeline, view feedback/grades
-- Professor dashboard: view students/groups, track submissions, comment/feedback, approve/resubmit, class analytics
-- Authentication: student/professor roles (mock for local dev)
-- Progress tracking: per project or per student
-- Analytics: submission statistics and progress summaries
+---
 
-## Tech Stack
-- Backend: Node.js + Express (TypeScript)
-- Frontend: React (Vite + TypeScript)
-- Storage: JSON files (development). Swap with DB later.
+## ✨ Features
 
-## Monorepo Structure
+### Collaborative dashboards
+- **Student experience**: submit files/links, track milestones, version history, announcements, and group discussions.
+- **Professor experience**: compact submission queue, inline feedback, grading, analytics, announcements, and assignment templates.
+- **Group workspace**: dedicated discussion board with live polling, per-thread forms, and role-aware navigation.
+
+### Communication & notifications
+- Pin global announcements, manage per-group discussions, and keep activity in sync with auto-refreshing message feeds.
+- Personalised avatars, unread counters, and live sync indicators for a modern messaging feel.
+
+### Authentication & theming
+- Dual-role (student/professor) login with a new two-panel hero layout.
+- Role-specific theming across dashboards, navigation, and chat bubbles.
+
+### Data & storage
+- Node.js + Express API backed by SQLite (via `better-sqlite3`) for users, submissions, announcements, and group content.
+- JSON-based seed data automatically migrated into SQLite on first run.
+
+---
+
+## 🛠 Tech Stack
+
+| Layer     | Tools |
+|-----------|-------|
+| Frontend  | React (Vite + TypeScript), CSS modules, custom design system |
+| Backend   | Node.js, Express, TypeScript, better-sqlite3 |
+| Tooling   | ESLint, pnpm/npm scripts, Vite, concurrently |
+
+---
+
+## 📁 Project Structure
 
 ```
 backend/
   src/
-    server.ts
-    routes/
-    models/
-    services/
-  data/
+    server.ts         # Express app + routes
+    data/             # SQLite database + seed JSON
 frontend/
   src/
-shared/
+    pages/            # Route-specific screens (dashboards, login, etc.)
+    components/       # Shared UI components
+    styles/           # Global + feature-specific styles
 ```
 
-## Getting Started
+---
 
-1) Backend
-- Install: `cd backend && npm i`
-- Dev: `npm run dev`
-- Env: `PORT=4000`
+## 🚀 Getting Started
 
-2) Frontend
-- Install: `cd frontend && npm i`
-- Dev: `npm run dev`
-- Open: http://localhost:5173
+### 1. Backend API
+```bash
+cd backend
+npm install
+npm run dev
+# API available at http://localhost:4000
+```
 
-Note: The backend uses file-based JSON storage under `backend/data/` for quick iteration. Replace with a real database in production.
+### 2. Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+# App available at http://localhost:5173
+```
 
-## Roadmap
-- Replace mock auth with real auth (JWT + sessions)
-- File uploads (Multer/S3) replacing base64 stub
-- Database integration (PostgreSQL + Prisma)
-- Role/permission hardening
-- Realtime notifications
+The backend relies on the SQLite database located in `backend/data/database.sqlite`. Seed data is migrated automatically from JSON the first time the server runs.
 
-## License
+---
+
+## 🧭 Roadmap
+
+- Real authentication layer (JWT + refresh tokens, password reset)
+- File storage integration (S3 or alternative)
+- Fine-grained permissions per cohort/class
+- Push notifications & scheduled reminders
+- CI/CD pipeline and production-ready deployment configuration
+
+---
+
+## 📄 License
+
 MIT
-
-
