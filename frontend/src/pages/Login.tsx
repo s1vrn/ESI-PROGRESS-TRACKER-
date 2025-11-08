@@ -130,154 +130,176 @@ export default function Login() {
 
   return (
     <>
-      <div className="auth-page-wrapper">
-        <aside className="auth-left-panel">
-          <header>
-            <span>ESI Progress Tracker</span>
-            <h1>Reliable submission tracking for ambitious teams.</h1>
-            <p>Coordinate milestones, share feedback, and keep every academic deliverable moving in one shared workspace.</p>
-          </header>
-          <div className="auth-highlights">
-            <div className="auth-highlight">
-              <div className="auth-highlight-icon">⚡️</div>
-              <div>
-                <strong>Frictionless reviews</strong>
-                <span>Professors get compact status cards and real-time progress updates.</span>
+      <div className="auth-scene">
+        <span className="auth-glow auth-glow-one" />
+        <span className="auth-glow auth-glow-two" />
+        <div className="auth-shell">
+          <aside className="auth-left-panel">
+            <header>
+              <span>ESI Progress Tracker</span>
+              <h1>Set the tone for calm, focused collaboration.</h1>
+              <p>Sign in to an ambient workspace where submissions, discussions, and guidance stay in flow.</p>
+            </header>
+
+            <div className="auth-metric-grid">
+              <div className="auth-metric-card">
+                <strong>480+</strong>
+                <span>Students connected</span>
+              </div>
+              <div className="auth-metric-card">
+                <strong>24h</strong>
+                <span>Average feedback loop</span>
+              </div>
+              <div className="auth-metric-card">
+                <strong>99%</strong>
+                <span>Verified faculty access</span>
               </div>
             </div>
-            <div className="auth-highlight">
-              <div className="auth-highlight-icon">🗂️</div>
-              <div>
-                <strong>Centralised resources</strong>
-                <span>Assignments, templates, and group discussions live in one organised hub.</span>
+
+            <div className="auth-highlights">
+              <div className="auth-highlight">
+                <div className="auth-highlight-icon">🌌</div>
+                <div>
+                  <strong>Ambient focus</strong>
+                  <span>Soft gradients and glass surfaces keep attention on what matters.</span>
+                </div>
+              </div>
+              <div className="auth-highlight">
+                <div className="auth-highlight-icon">🧭</div>
+                <div>
+                  <strong>Guided journeys</strong>
+                  <span>Milestones, templates, and announcements align every participant.</span>
+                </div>
+              </div>
+              <div className="auth-highlight">
+                <div className="auth-highlight-icon">🔐</div>
+                <div>
+                  <strong>ESI trust</strong>
+                  <span>Institutional email verification ensures a secure academic environment.</span>
+                </div>
               </div>
             </div>
-            <div className="auth-highlight">
-              <div className="auth-highlight-icon">🔒</div>
-              <div>
-                <strong>ESI-secured access</strong>
-                <span>Only verified @esi.ac.ma accounts can join and contribute.</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+          </aside>
 
-        <section className="auth-right-panel">
-          <header>
-            <h2>{isRegistering ? 'Create your account' : 'Welcome back'}</h2>
-            <p>{isRegistering ? 'Enter your ESI details to start collaborating.' : 'Sign in to continue tracking your progress.'}</p>
-          </header>
+          <section className="auth-right-panel">
+            <div className="auth-form-card">
+              <header>
+                <h2>{isRegistering ? 'Create your account' : 'Welcome back'}</h2>
+                <p>{isRegistering ? 'Enter your ESI details to start collaborating.' : 'Sign in to continue tracking your progress.'}</p>
+              </header>
 
-          <div className="auth-role-toggle">
-            <button
-              type="button"
-              className={role === 'student' ? 'active' : ''}
-              onClick={() => setRole('student')}
-              disabled={loading}
-            >
-              Student
-            </button>
-            <button
-              type="button"
-              className={role === 'professor' ? 'active' : ''}
-              onClick={() => setRole('professor')}
-              disabled={loading}
-            >
-              Professor
-            </button>
-          </div>
-
-          {error && <div className="auth-error">{error}</div>}
-
-          <form className="auth-form" onSubmit={isRegistering ? handleRegister : handleLogin}>
-            <div className="auth-field">
-              <label>User ID</label>
-              <input
-                type="text"
-                value={userId}
-                onChange={e => setUserId(e.target.value)}
-                placeholder={role === 'student' ? 'e.g., student_alex' : 'e.g., prof_samira'}
-                autoFocus
-                disabled={loading}
-              />
-            </div>
-
-            {isRegistering && (
-              <div className="auth-field">
-                <label>ESI Institutional Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your.name@esi.ac.ma"
+              <div className="auth-role-toggle">
+                <button
+                  type="button"
+                  className={role === 'student' ? 'active' : ''}
+                  onClick={() => setRole('student')}
                   disabled={loading}
-                />
-                <small>Must be an @esi.ac.ma email address</small>
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  className={role === 'professor' ? 'active' : ''}
+                  onClick={() => setRole('professor')}
+                  disabled={loading}
+                >
+                  Professor
+                </button>
               </div>
-            )}
 
-            {isRegistering && role === 'student' && (
-              <>
+              {error && <div className="auth-error">{error}</div>}
+
+              <form className="auth-form" onSubmit={isRegistering ? handleRegister : handleLogin}>
                 <div className="auth-field">
-                  <label>Branch *</label>
+                  <label>User ID</label>
                   <input
                     type="text"
-                    value={branch}
-                    onChange={e => setBranch(e.target.value)}
-                    placeholder="e.g., Computer Science, Software Engineering"
+                    value={userId}
+                    onChange={e => setUserId(e.target.value)}
+                    placeholder={role === 'student' ? 'e.g., student_alex' : 'e.g., prof_samira'}
+                    autoFocus
                     disabled={loading}
                   />
                 </div>
-                <div className="auth-field">
-                  <label>Year *</label>
-                  <select
-                    value={year}
-                    onChange={e => setYear(e.target.value as 'freshman' | 'second year' | 'third year')}
-                    disabled={loading}
-                  >
-                    <option value="">-- Select your year --</option>
-                    <option value="freshman">Freshman</option>
-                    <option value="second year">Second Year</option>
-                    <option value="third year">Third Year</option>
-                  </select>
-                </div>
-              </>
-            )}
 
-            <div className="auth-field">
-              <label>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter password"
-                disabled={loading}
-              />
+                {isRegistering && (
+                  <div className="auth-field">
+                    <label>ESI Institutional Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="your.name@esi.ac.ma"
+                      disabled={loading}
+                    />
+                    <small>Must be an @esi.ac.ma email address</small>
+                  </div>
+                )}
+
+                {isRegistering && role === 'student' && (
+                  <>
+                    <div className="auth-field">
+                      <label>Branch *</label>
+                      <input
+                        type="text"
+                        value={branch}
+                        onChange={e => setBranch(e.target.value)}
+                        placeholder="e.g., Computer Science, Software Engineering"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="auth-field">
+                      <label>Year *</label>
+                      <select
+                        value={year}
+                        onChange={e => setYear(e.target.value as 'freshman' | 'second year' | 'third year')}
+                        disabled={loading}
+                      >
+                        <option value="">-- Select your year --</option>
+                        <option value="freshman">Freshman</option>
+                        <option value="second year">Second Year</option>
+                        <option value="third year">Third Year</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                <div className="auth-field">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    disabled={loading}
+                  />
+                </div>
+
+                <button type="submit" className="auth-submit" disabled={loading}>
+                  {loading ? 'Please wait…' : isRegistering ? 'Register' : 'Sign In'}
+                </button>
+              </form>
+
+              <div className="auth-alt">
+                <span>{isRegistering ? 'Already have an account?' : "Don't have an account?"}</span>{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegistering(!isRegistering)
+                    setError('')
+                  }}
+                  disabled={loading}
+                >
+                  {isRegistering ? 'Sign in' : 'Register'}
+                </button>
+              </div>
             </div>
 
-            <button type="submit" className="auth-submit" disabled={loading}>
-              {loading ? 'Please wait…' : isRegistering ? 'Register' : 'Sign In'}
-            </button>
-          </form>
-
-          <div className="auth-alt">
-            <span>{isRegistering ? 'Already have an account?' : "Don't have an account?"}</span>{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegistering(!isRegistering)
-                setError('')
-              }}
-              disabled={loading}
-            >
-              {isRegistering ? 'Sign in' : 'Register'}
-            </button>
-          </div>
-
-          <div className="auth-footer">
-            Need help? Contact your academic mentor or reach out to support@esi.ac.ma
-          </div>
-        </section>
+            <div className="auth-form-footer">
+              Need a hand? Contact your mentor or email support@esi.ac.ma
+            </div>
+          </section>
+        </div>
       </div>
       <Footer />
     </>
