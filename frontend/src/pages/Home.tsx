@@ -1,13 +1,24 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getAuth } from './Login'
 import ESILogo from '../components/ESILogo'
+import Footer from '../components/Footer'
 
 export default function Home() {
   const auth = getAuth()
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const stored = localStorage.getItem('esi-home-theme')
+    if (stored) return stored === 'dark'
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+  })
+
+  useEffect(() => {
+    localStorage.setItem('esi-home-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   return (
-    <div className="home-page">
+    <div className={`home-page${darkMode ? ' dark' : ''}`}>
       <nav className="home-navbar">
         <div className="home-navbar-inner">
           <div className="home-brand">
@@ -21,6 +32,14 @@ export default function Home() {
             <a href="#cta">Join us</a>
           </div>
           <div className="home-actions">
+            <button
+              type="button"
+              className="home-theme-toggle"
+              onClick={() => setDarkMode(prev => !prev)}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {darkMode ? '☀ Light' : '🌙 Dark'}
+            </button>
             {auth ? (
               <>
                 <Link to={auth.role === 'student' ? '/student' : '/professor'} className="btn-nav subtle">
@@ -50,11 +69,10 @@ export default function Home() {
       <main className="home-main">
         <section className="home-hero">
           <div className="hero-left">
-            <span className="hero-pill">Academic Excellence • Powered by ESI</span>
-            <h1>Organize, evaluate and celebrate every academic milestone.</h1>
+            <span className="hero-pill">All-in-one academic workspace • Made for ESI</span>
+            <h1>Plan milestones, spark discussions and deliver with clarity.</h1>
             <p>
-              From first draft to final defense, ESI Progress Tracker connects students and professors in a single, elegant workspace.
-              Upload deliverables, collect feedback, track milestones and surface insights without leaving the platform.
+              ESI Progress Tracker blends dashboards, group conversations, analytics and assignment templates into a single, elegant workflow for students and professors.
             </p>
             <div className="hero-buttons">
               {auth ? (
@@ -63,31 +81,31 @@ export default function Home() {
                 </Link>
               ) : (
                 <>
-                  <Link to="/login?mode=register" className="btn btn-primary-large">Sign up with ESI email</Link>
-                  <Link to="/login?mode=login" className="btn btn-secondary-large">I already have an account</Link>
+                  <Link to="/login?mode=register" className="btn btn-primary-large">Create an account</Link>
+                  <Link to="/login?mode=login" className="btn btn-secondary-large">Preview the workspace</Link>
                 </>
               )}
             </div>
             <div className="hero-metrics">
               <div className="metric-card">
-                <span className="metric-value">+120</span>
-                <span className="metric-label">Projects tracked this semester</span>
+                <span className="metric-value">+45k</span>
+                <span className="metric-label">Messages synced across cohorts</span>
               </div>
               <div className="metric-card">
-                <span className="metric-value">94%</span>
-                <span className="metric-label">Submissions reviewed on time</span>
+                <span className="metric-value">98%</span>
+                <span className="metric-label">Submissions reviewed on schedule</span>
               </div>
               <div className="metric-card">
-                <span className="metric-value">Real-time</span>
-                <span className="metric-label">Notifications & analytics</span>
+                <span className="metric-value">Live</span>
+                <span className="metric-label">Announcements, analytics & templates</span>
               </div>
             </div>
           </div>
           <div className="hero-right">
             <div className="hero-illustration">
               <div className="hero-glass-card">
-                <h4>Next Milestone</h4>
-                <p>Submit Sprint Review</p>
+                <h4>Upcoming milestone</h4>
+                <p>Group sprint review</p>
                 <div className="hero-progress">
                   <div className="hero-progress-bar"><span style={{ width: '72%' }} /></div>
                   <span>72% complete</span>
@@ -96,15 +114,15 @@ export default function Home() {
                   <div className="mini-item">
                     <div className="mini-icon">✅</div>
                     <div>
-                      <p>Professor feedback loop</p>
-                      <small>Average turnaround 12h</small>
+                      <p>Professor feedback</p>
+                      <small>Turnaround in under 12 hours</small>
                     </div>
                   </div>
                   <div className="mini-item">
-                    <div className="mini-icon">📎</div>
+                    <div className="mini-icon">💬</div>
                     <div>
-                      <p>Attach files & versions</p>
-                      <small>PDF, ZIP, links supported</small>
+                      <p>Group discussions</p>
+                      <small>Auto-sync threads & alerts</small>
                     </div>
                   </div>
                 </div>
@@ -116,19 +134,19 @@ export default function Home() {
 
         <section className="home-highlight" id="features">
           <div className="highlight-card">
+            <div className="highlight-icon">🌐</div>
+            <h3>Unified workspace</h3>
+            <p>Dashboards, analytics, templates and inboxes all share the same design language—no context switching required.</p>
+          </div>
+          <div className="highlight-card">
+            <div className="highlight-icon">💬</div>
+            <h3>Real-time collaboration</h3>
+            <p>Discussion threads auto-scroll on fresh messages, support avatars, and keep announcements checked off.</p>
+          </div>
+          <div className="highlight-card">
             <div className="highlight-icon">🔐</div>
-            <h3>Verified campus access</h3>
-            <p>Only @esi.ac.ma accounts gain entry. Email verification keeps the workspace secure and professor assignments accurate.</p>
-          </div>
-          <div className="highlight-card">
-            <div className="highlight-icon">🧭</div>
-            <h3>Guided academic journey</h3>
-            <p>Plan milestones, collect professor feedback, version files and keep every deliverable traceable in one timeline.</p>
-          </div>
-          <div className="highlight-card">
-            <div className="highlight-icon">📈</div>
-            <h3>Insights at a glance</h3>
-            <p>Dashboards summarize progress for the whole class or a single student with trends, distribution charts and performance metrics.</p>
+            <h3>ESI-secured login</h3>
+            <p>Our redesigned two-panel sign-in flow verifies institutional emails and guides new users with clarity.</p>
           </div>
         </section>
 
@@ -137,16 +155,16 @@ export default function Home() {
             <h2>The student experience</h2>
             <ul>
               <li>Drag & drop documents, reports and code references.</li>
-              <li>Keep personal notes, milestones and version history.</li>
-              <li>Follow professor feedback threads with instant notifications.</li>
+              <li>Keep personal notes, milestones, version history and discussion archives.</li>
+              <li>Follow professor feedback and announcements with instant notifications.</li>
             </ul>
           </div>
           <div className="split-card">
             <h2>The professor cockpit</h2>
             <ul>
-              <li>Compact submission cards with drill-down reviews.</li>
-              <li>Approve, request resubmission or grade with one click.</li>
-              <li>Peek at student profiles, team compositions and analytics.</li>
+              <li>Compact submission cards with drill-down reviews & per-thread forms.</li>
+              <li>Approve, request resubmission or grade with a streamlined form.</li>
+              <li>Peek at student profiles, team compositions, analytics and templates.</li>
             </ul>
           </div>
         </section>
@@ -165,12 +183,12 @@ export default function Home() {
             <div className="workflow-step">
               <span className="step-number">2</span>
               <h3>Plan deliverables & milestones</h3>
-              <p>Set objectives, attach templates and organize teams before work begins.</p>
+              <p>Set objectives, attach assignment templates, invite teammates and get aligned faster.</p>
             </div>
             <div className="workflow-step">
               <span className="step-number">3</span>
               <h3>Collaborate in real time</h3>
-              <p>Submit versions, comment, approve or request changes with transparent logs for every stakeholder.</p>
+              <p>Submit versions, discuss feedback, post announcements and approve or request changes with transparent logs.</p>
             </div>
             <div className="workflow-step">
               <span className="step-number">4</span>
@@ -183,7 +201,7 @@ export default function Home() {
         <section className="home-insights" id="insights">
           <div className="insights-card">
             <h2>Advanced analytics keep cohorts aligned.</h2>
-            <p>Submission trends, performance distribution and template engagement help mentors focus where it counts.</p>
+            <p>Submission trends, performance distribution and template engagement keep mentors focused where it counts.</p>
             <div className="insight-tags">
               <span>Real-time charts</span>
               <span>Team submissions</span>
@@ -196,11 +214,11 @@ export default function Home() {
               <h4>Across the platform</h4>
               <div className="stat-item">
                 <span>68%</span>
-                <p>of submissions use milestone planning</p>
+                <p>of submissions follow milestone planning</p>
               </div>
               <div className="stat-item">
                 <span>42 teams</span>
-                <p>collaborating with shared repositories</p>
+                <p>collaborating with shared discussions & repos</p>
               </div>
               <div className="stat-item">
                 <span>15 templates</span>
@@ -208,6 +226,9 @@ export default function Home() {
               </div>
             </div>
             <div className="insight-preview">
+              <div className="preview-subhead">
+                <p>Last week, professor feedback loops cut turnaround time by 28% while template adoption grew steadily.</p>
+              </div>
               <div className="preview-header">
                 <span className="dot dot-green" />
                 <span className="dot dot-amber" />
@@ -246,7 +267,7 @@ export default function Home() {
           <div className="testimonial-cards">
             <div className="testimonial-card">
               <h4>Built for the dashboard era</h4>
-              <p>Every element on this page mirrors the refined dashboards—ensuring continuity once you sign in.</p>
+              <p>Every element on this page mirrors the refined dashboards, threads and analytics once you sign in.</p>
             </div>
             <div className="testimonial-card">
               <h4>Dark mode ready</h4>
@@ -274,6 +295,7 @@ export default function Home() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   )
 }
