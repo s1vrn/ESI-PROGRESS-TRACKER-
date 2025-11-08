@@ -79,6 +79,27 @@ type Group = {
   updatedAt: string;
 };
 
+type GroupThread = {
+  id: string;
+  groupId: string;
+  title: string;
+  createdBy: string;
+  relatedSubmissionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastMessageAt?: string;
+};
+
+type GroupMessage = {
+  id: string;
+  threadId: string;
+  groupId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+};
+
 type AssignmentTemplate = {
   id: string;
   title: string;
@@ -163,6 +184,27 @@ type DBAnnouncementRow = {
   createdAt: string;
 };
 
+type DBGroupThreadRow = {
+  id: string;
+  groupId: string;
+  title: string;
+  createdBy: string;
+  relatedSubmissionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastMessageAt: string | null;
+};
+
+type DBGroupMessageRow = {
+  id: string;
+  threadId: string;
+  groupId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+};
+
 function initDatabase() {
   db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
@@ -214,6 +256,34 @@ function initDatabase() {
       createdBy TEXT NOT NULL,
       createdAt TEXT NOT NULL,
       FOREIGN KEY(createdBy) REFERENCES users(userId) ON UPDATE CASCADE
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS group_threads (
+      id TEXT PRIMARY KEY,
+      groupId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      createdBy TEXT NOT NULL,
+      relatedSubmissionId TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      messageCount INTEGER NOT NULL DEFAULT 0,
+      lastMessageAt TEXT,
+      FOREIGN KEY(createdBy) REFERENCES users(userId) ON UPDATE CASCADE
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS group_messages (
+      id TEXT PRIMARY KEY,
+      threadId TEXT NOT NULL,
+      groupId TEXT NOT NULL,
+      authorId TEXT NOT NULL,
+      body TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY(threadId) REFERENCES group_threads(id) ON DELETE CASCADE,
+      FOREIGN KEY(authorId) REFERENCES users(userId) ON UPDATE CASCADE
     )
   `).run();
 }
@@ -283,6 +353,31 @@ const upsertAnnouncementStmt = db.prepare(`
     createdAt = excluded.createdAt
 `);
 
+const insertGroupThreadStmt = db.prepare(`
+  INSERT INTO group_threads (
+    id, groupId, title, createdBy, relatedSubmissionId, createdAt, updatedAt, messageCount, lastMessageAt
+  ) VALUES (
+    @id, @groupId, @title, @createdBy, @relatedSubmissionId, @createdAt, @updatedAt, @messageCount, @lastMessageAt
+  )
+`);
+
+const insertGroupMessageStmt = db.prepare(`
+  INSERT INTO group_messages (
+    id, threadId, groupId, authorId, body, createdAt
+  ) VALUES (
+    @id, @threadId, @groupId, @authorId, @body, @createdAt
+  )
+`);
+
+const incrementThreadStatsStmt = db.prepare(`
+  UPDATE group_threads
+  SET
+    updatedAt = @timestamp,
+    lastMessageAt = @timestamp,
+    messageCount = messageCount + 1
+  WHERE id = @id
+`);
+
 function mapUserRow(row: DBUserRow | undefined): User | undefined {
   if (!row) return undefined;
   return {
@@ -342,6 +437,187 @@ function listVerifiedProfessors(): Array<{ userId: string; name?: string; email:
 function listAllUsers(): User[] {
   const rows = db.prepare('SELECT * FROM users').all() as DBUserRow[];
   return rows.map(row => mapUserRow(row)).filter((u): u is User => !!u);
+}
+
+function mapGroupThreadRow(row: DBGroupThreadRow | undefined): GroupThread | undefined {
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    groupId: row.groupId,
+    title: row.title,
+    createdBy: row.createdBy,
+    relatedSubmissionId: row.relatedSubmissionId ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    messageCount: row.messageCount,
+    lastMessageAt: row.lastMessageAt ?? undefined,
+  };
+}
+
+function mapGroupMessageRow(row: DBGroupMessageRow | undefined): GroupMessage | undefined {
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    threadId: row.threadId,
+    groupId: row.groupId,
+    authorId: row.authorId,
+    body: row.body,
+    createdAt: row.createdAt,
+  };
+}
+
+function getGroupThreadById(threadId: string): GroupThread | undefined {
+  const row = db.prepare('SELECT * FROM group_threads WHERE id = ?').get(threadId) as DBGroupThreadRow | undefined;
+  return mapGroupThreadRow(row);
+}
+
+function listGroupThreads(groupId: string): GroupThread[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM group_threads
+       WHERE groupId = ?
+       ORDER BY
+         CASE WHEN lastMessageAt IS NULL THEN 1 ELSE 0 END,
+         COALESCE(lastMessageAt, updatedAt) DESC`
+    )
+    .all(groupId) as DBGroupThreadRow[];
+  return rows
+    .map(row => mapGroupThreadRow(row))
+    .filter((t): t is GroupThread => !!t);
+}
+
+function listThreadMessages(threadId: string): GroupMessage[] {
+  const rows = db
+    .prepare('SELECT * FROM group_messages WHERE threadId = ? ORDER BY createdAt ASC')
+    .all(threadId) as DBGroupMessageRow[];
+  return rows
+    .map(row => mapGroupMessageRow(row))
+    .filter((m): m is GroupMessage => !!m);
+}
+
+function getLastMessageForThread(threadId: string): GroupMessage | undefined {
+  const row = db
+    .prepare('SELECT * FROM group_messages WHERE threadId = ? ORDER BY createdAt DESC LIMIT 1')
+    .get(threadId) as DBGroupMessageRow | undefined;
+  return mapGroupMessageRow(row);
+}
+
+function buildThreadResponse(thread: GroupThread, lastMessageOverride?: GroupMessage | null) {
+  const lastMessage = typeof lastMessageOverride !== 'undefined'
+    ? lastMessageOverride
+    : thread.messageCount > 0
+      ? getLastMessageForThread(thread.id) ?? null
+      : null;
+  return {
+    ...thread,
+    relatedSubmissionId: thread.relatedSubmissionId ?? null,
+    lastMessage,
+  };
+}
+
+const createGroupThreadTx = db.transaction(
+  (threadRow: DBGroupThreadRow, initialMessageRow?: DBGroupMessageRow) => {
+    insertGroupThreadStmt.run({
+      ...threadRow,
+      relatedSubmissionId: threadRow.relatedSubmissionId ?? null,
+      lastMessageAt: threadRow.lastMessageAt ?? null,
+    });
+    if (initialMessageRow) {
+      insertGroupMessageStmt.run(initialMessageRow);
+      incrementThreadStatsStmt.run({ id: threadRow.id, timestamp: initialMessageRow.createdAt });
+    }
+  }
+);
+
+const appendMessageTx = db.transaction((messageRow: DBGroupMessageRow) => {
+  insertGroupMessageStmt.run(messageRow);
+  incrementThreadStatsStmt.run({ id: messageRow.threadId, timestamp: messageRow.createdAt });
+});
+
+function createGroupThreadRecord(
+  groupId: string,
+  title: string,
+  createdBy: string,
+  relatedSubmissionId?: string,
+  initialMessageBody?: string
+): { thread: GroupThread; messages: GroupMessage[] } {
+  const now = new Date().toISOString();
+  const threadId = `thread_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const threadRow: DBGroupThreadRow = {
+    id: threadId,
+    groupId,
+    title,
+    createdBy,
+    relatedSubmissionId: relatedSubmissionId ?? null,
+    createdAt: now,
+    updatedAt: now,
+    messageCount: 0,
+    lastMessageAt: null,
+  };
+
+  let initialMessage: GroupMessage | undefined;
+  if (initialMessageBody && initialMessageBody.trim()) {
+    const messageRow: DBGroupMessageRow = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      threadId,
+      groupId,
+      authorId: createdBy,
+      body: initialMessageBody.trim(),
+      createdAt: now,
+    };
+    createGroupThreadTx(threadRow, messageRow);
+    initialMessage = {
+      id: messageRow.id,
+      threadId,
+      groupId,
+      authorId: createdBy,
+      body: messageRow.body,
+      createdAt: now,
+    };
+  } else {
+    createGroupThreadTx(threadRow);
+  }
+
+  const savedThread = getGroupThreadById(threadId);
+  if (!savedThread) {
+    throw new Error('Failed to create thread');
+  }
+  return {
+    thread: savedThread,
+    messages: initialMessage ? [initialMessage] : [],
+  };
+}
+
+function appendMessageToThread(
+  thread: GroupThread,
+  authorId: string,
+  body: string
+): { message: GroupMessage; thread: GroupThread } {
+  const createdAt = new Date().toISOString();
+  const messageRow: DBGroupMessageRow = {
+    id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    threadId: thread.id,
+    groupId: thread.groupId,
+    authorId,
+    body: body.trim(),
+    createdAt,
+  };
+  appendMessageTx(messageRow);
+  const updatedThread = getGroupThreadById(thread.id);
+  if (!updatedThread) {
+    throw new Error('Failed to load thread after message append');
+  }
+  return {
+    message: {
+      id: messageRow.id,
+      threadId: thread.id,
+      groupId: thread.groupId,
+      authorId,
+      body: messageRow.body,
+      createdAt,
+    },
+    thread: updatedThread,
+  };
 }
 
 function filterSubmissionsByProfessor(submissions: Submission[], professorId: string, persist = false): Submission[] {
@@ -569,6 +845,59 @@ function addNotification(notification: Notification) {
   notifications.push(notification);
   writeJson('notifications.json', notifications);
   return notification;
+}
+
+function loadGroupById(groupId: string): Group | undefined {
+  const groups = readJson<Group[]>('groups.json', []);
+  return groups.find(g => g.id === groupId);
+}
+
+function ensureGroupAccess(
+  groupId: string,
+  auth: { userId: string; role: 'student' | 'professor' },
+  res: express.Response
+): Group | undefined {
+  const group = loadGroupById(groupId);
+  if (!group) {
+    res.status(404).json({ error: 'Group not found' });
+    return undefined;
+  }
+  if (auth.role === 'student' && !group.members.includes(auth.userId)) {
+    res.status(403).json({ error: 'You are not a member of this group' });
+    return undefined;
+  }
+  return group;
+}
+
+function validateSubmissionForGroupLink(
+  submissionId: string,
+  group: Group,
+  auth: { userId: string; role: 'student' | 'professor' },
+  res: express.Response
+): Submission | undefined {
+  const submission = getSubmissionById(submissionId);
+  if (!submission) {
+    res.status(400).json({ error: 'Related submission not found' });
+    return undefined;
+  }
+
+  if (submission.groupId) {
+    if (submission.groupId !== group.id) {
+      res.status(400).json({ error: 'Submission is not associated with this group' });
+      return undefined;
+    }
+  } else {
+    if (!group.members.includes(submission.studentId)) {
+      res.status(400).json({ error: 'Submission is not owned by a member of this group' });
+      return undefined;
+    }
+    if (auth.role === 'student' && submission.studentId !== auth.userId) {
+      res.status(403).json({ error: 'You can only link your own individual submissions' });
+      return undefined;
+    }
+  }
+
+  return submission;
 }
 
 // Generate 6-digit verification code
@@ -1565,6 +1894,98 @@ app.delete('/api/groups/:id/members/:studentId', (req, res) => {
   groups[idx] = group;
   writeJson('groups.json', groups);
   res.json(group);
+});
+
+app.get('/api/groups/:id/threads', (req, res) => {
+  const auth = (req as any).auth as { userId: string; role: 'student' | 'professor' };
+  const { id } = req.params;
+  const group = ensureGroupAccess(id, auth, res);
+  if (!group) return;
+
+  const threads = listGroupThreads(id).map(thread => buildThreadResponse(thread));
+  res.json(threads);
+});
+
+app.post('/api/groups/:id/threads', (req, res) => {
+  const auth = (req as any).auth as { userId: string; role: 'student' | 'professor' };
+  const { id } = req.params;
+  const { title, relatedSubmissionId, initialMessage } = req.body || {};
+
+  const group = ensureGroupAccess(id, auth, res);
+  if (!group) return;
+
+  if (!title || !title.trim()) {
+    return res.status(400).json({ error: 'Thread title is required' });
+  }
+
+  let submissionId: string | undefined;
+  if (relatedSubmissionId) {
+    const submission = validateSubmissionForGroupLink(String(relatedSubmissionId), group, auth, res);
+    if (!submission) return;
+    submissionId = submission.id;
+  }
+
+  try {
+    const result = createGroupThreadRecord(id, title.trim(), auth.userId, submissionId, initialMessage);
+    const threadPayload = buildThreadResponse(
+      result.thread,
+      result.messages.length ? result.messages[result.messages.length - 1] : null
+    );
+    res.status(201).json({
+      thread: threadPayload,
+      messages: result.messages,
+    });
+  } catch (error) {
+    console.error('Failed to create group thread', error);
+    res.status(500).json({ error: 'Failed to create thread' });
+  }
+});
+
+app.get('/api/groups/:id/threads/:threadId', (req, res) => {
+  const auth = (req as any).auth as { userId: string; role: 'student' | 'professor' };
+  const { id, threadId } = req.params;
+  const group = ensureGroupAccess(id, auth, res);
+  if (!group) return;
+
+  const thread = getGroupThreadById(threadId);
+  if (!thread || thread.groupId !== id) {
+    return res.status(404).json({ error: 'Thread not found' });
+  }
+
+  const messages = listThreadMessages(threadId);
+  const payload = buildThreadResponse(thread, messages.length ? messages[messages.length - 1] : null);
+  res.json({ thread: payload, messages });
+});
+
+app.post('/api/groups/:id/threads/:threadId/messages', (req, res) => {
+  const auth = (req as any).auth as { userId: string; role: 'student' | 'professor' };
+  const { id, threadId } = req.params;
+  const { body } = req.body || {};
+
+  if (!body || !String(body).trim()) {
+    return res.status(400).json({ error: 'Message body is required' });
+  }
+
+  const group = ensureGroupAccess(id, auth, res);
+  if (!group) return;
+
+  const thread = getGroupThreadById(threadId);
+  if (!thread || thread.groupId !== id) {
+    return res.status(404).json({ error: 'Thread not found' });
+  }
+
+  if (auth.role === 'student' && !group.members.includes(auth.userId)) {
+    return res.status(403).json({ error: 'You are not a member of this group' });
+  }
+
+  try {
+    const { message, thread: updatedThread } = appendMessageToThread(thread, auth.userId, String(body));
+    const payload = buildThreadResponse(updatedThread, message);
+    res.status(201).json({ message, thread: payload });
+  } catch (error) {
+    console.error('Failed to add message to thread', error);
+    res.status(500).json({ error: 'Failed to add message' });
+  }
 });
 
 // Version Management Endpoints

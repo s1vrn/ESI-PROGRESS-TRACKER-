@@ -9,6 +9,7 @@ import StudentDashboard from './pages/StudentDashboard'
 import ProfessorDashboard from './pages/ProfessorDashboard'
 import Profile from './pages/Profile'
 import Analytics from './pages/Analytics'
+import GroupDiscussionsPage from './pages/GroupDiscussions'
 import ProtectedRoute from './components/ProtectedRoute'
 import { getAuth } from './pages/Login'
 
@@ -42,6 +43,22 @@ function App() {
         <Route
           path="/analytics"
           element={<Analytics />}
+        />
+        <Route
+          path="/student/discussions"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <GroupDiscussionsPage role="student" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/professor/discussions"
+          element={
+            <ProtectedRoute requiredRole="professor">
+              <GroupDiscussionsPage role="professor" />
+            </ProtectedRoute>
+          }
         />
       </Routes>
     </BrowserRouter>

@@ -391,6 +391,34 @@ export default function ProfessorDashboard() {
           </div>
         )}
 
+        {/* Group Discussions */}
+        <div className="dashboard-group-discussions-card" id="professor-group-discussions">
+          <div className="discussion-section-header">
+            <h2>💬 Group Discussions</h2>
+            <p>Open the dedicated workspace to join conversations and keep every cohort aligned in real time.</p>
+          </div>
+          <div className="discussion-placeholder">
+            {groups.length > 0
+              ? `You currently oversee ${groups.length} group${groups.length === 1 ? '' : 's'}. Launch the workspace to jump into any thread instantly.`
+              : 'No student groups yet. Encourage teams to create a group so they can collaborate here.'}
+          </div>
+          <div className="discussion-actions">
+            <button
+              type="button"
+              className="btn-discussion"
+              onClick={() =>
+                navigate(
+                  groups.length
+                    ? `/professor/discussions?group=${groups[0].id}`
+                    : '/professor/discussions'
+                )
+              }
+            >
+              🚀 Launch discussions workspace
+            </button>
+          </div>
+        </div>
+
         {/* Filter and Search Bar */}
         <div className="dashboard-filter-card" id="professor-filters">
           <div className="filter-section">

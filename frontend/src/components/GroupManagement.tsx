@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getAuth } from '../pages/Login'
 
 type Group = {
@@ -31,12 +32,12 @@ function getHeaders() {
 
 export default function GroupManagement() {
   const auth = getAuth()
+  const navigate = useNavigate()
   const [groups, setGroups] = useState<Group[]>([])
   const [students, setStudents] = useState<User[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
   const [newGroupDescription, setNewGroupDescription] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
   const [addMemberId, setAddMemberId] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -115,9 +116,6 @@ export default function GroupManagement() {
       }
       const updatedGroup = await res.json()
       setGroups(prev => prev.map(g => g.id === groupId ? updatedGroup : g))
-      if (selectedGroup?.id === groupId) {
-        setSelectedGroup(updatedGroup)
-      }
       setAddMemberId('')
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to add member')
@@ -141,14 +139,17 @@ export default function GroupManagement() {
       }
       const updatedGroup = await res.json()
       setGroups(prev => prev.map(g => g.id === groupId ? updatedGroup : g))
-      if (selectedGroup?.id === groupId) {
-        setSelectedGroup(updatedGroup)
-      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to remove member')
     } finally {
       setLoading(false)
     }
+  }
+
+  function openDiscussions(groupId: string) {
+    if (!auth) return
+    const basePath = auth.role === 'professor' ? '/professor/discussions' : '/student/discussions'
+    navigate(`${basePath}?group=${groupId}`)
   }
 
   return (
@@ -271,6 +272,16 @@ export default function GroupManagement() {
                     )
                   })}
                 </div>
+              </div>
+
+              <div className="group-discussion-toggle">
+                <button
+                  type="button"
+                  className="btn-discussion"
+                  onClick={() => openDiscussions(group.id)}
+                >
+                  💬 Open discussion workspace
+                </button>
               </div>
             </div>
           ))

@@ -543,12 +543,12 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Assignment Templates */}
+        {/* Assignments */}
         <div className="dashboard-templates-section" id="templates-section">
           <div className="templates-section-header">
             <div>
-              <h2 className="templates-section-title">📂 Assignment Templates</h2>
-              <p className="templates-section-subtitle">Browse available templates and click to pre-fill your submission.</p>
+              <h2 className="templates-section-title">📂 Assignments</h2>
+              <p className="templates-section-subtitle">Browse the curated assignments and click to pre-fill your submission.</p>
             </div>
             <button
               className="btn-refresh-templates"

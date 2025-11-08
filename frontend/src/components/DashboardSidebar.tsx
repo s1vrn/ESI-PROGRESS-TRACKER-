@@ -19,8 +19,9 @@ const studentLinks: SidebarLink[] = [
   { label: 'Overview', icon: '🏠', sectionId: 'dashboard-overview' },
   { label: 'Alerts & Announcements', icon: '📢', sectionId: 'student-announcements' },
   { label: 'New Submission', icon: '📝', sectionId: 'new-submission' },
-  { label: 'Assignment Templates', icon: '📂', sectionId: 'templates-section' },
+  { label: 'Assignments', icon: '📂', sectionId: 'templates-section' },
   { label: 'My Submissions', icon: '📚', sectionId: 'student-submissions' },
+  { label: 'Discussions', icon: '💬', path: '/student/discussions' },
   { label: 'Analytics', icon: '📊', path: '/analytics' },
   { label: 'Profile', icon: '👤', path: '/profile' },
 ]
@@ -31,6 +32,7 @@ const professorLinks: SidebarLink[] = [
   { label: 'Filters', icon: '🔍', sectionId: 'professor-filters' },
   { label: 'Templates', icon: '📄', sectionId: 'professor-templates' },
   { label: 'Submissions', icon: '📚', sectionId: 'professor-submissions' },
+  { label: 'Discussions', icon: '💬', path: '/professor/discussions' },
   { label: 'Analytics', icon: '📊', path: '/analytics' },
   { label: 'Profile', icon: '👤', path: '/profile' },
 ]
