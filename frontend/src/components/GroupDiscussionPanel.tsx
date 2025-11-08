@@ -48,14 +48,23 @@ type ThreadWithMessages = {
 
 const API = 'http://localhost:4000'
 
+function initialsFor(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return '??'
+  const parts = trimmed.split(/\s+/).slice(0, 2)
+  const initials = parts.map(part => part.charAt(0).toUpperCase()).join('')
+  return initials || trimmed.slice(0, 2).toUpperCase()
+}
+
 type GroupDiscussionPanelProps = {
   group: Group
   open: boolean
   submissions?: SubmissionSummary[]
   title?: string
+  members?: Array<{ userId: string; name?: string }>
 }
 
-export default function GroupDiscussionPanel({ group, open, submissions = [], title }: GroupDiscussionPanelProps) {
+export default function GroupDiscussionPanel({ group, open, submissions = [], title, members = [] }: GroupDiscussionPanelProps) {
   const auth = getAuth()
   const [threads, setThreads] = useState<GroupThread[]>([])
   const [loadingThreads, setLoadingThreads] = useState(false)
@@ -71,14 +80,55 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
   const [creatingThread, setCreatingThread] = useState(false)
   const [newMessageDraft, setNewMessageDraft] = useState('')
   const [postingMessage, setPostingMessage] = useState(false)
+  const [threadSearch, setThreadSearch] = useState('')
+  const [userDirectory, setUserDirectory] = useState<Record<string, { name?: string; initials: string }>>({})
 
   const groupSubmissions = useMemo(() => {
     return submissions.filter(sub => sub.groupId === group.id)
   }, [submissions, group.id])
 
+  const filteredThreads = useMemo(() => {
+    if (!threadSearch.trim()) return threads
+    const lowered = threadSearch.trim().toLowerCase()
+    return threads.filter(thread => {
+      const submissionTitle = getSubmissionTitle(thread.relatedSubmissionId)
+      return (
+        thread.title.toLowerCase().includes(lowered) ||
+        (submissionTitle ? submissionTitle.toLowerCase().includes(lowered) : false)
+      )
+    })
+  }, [threads, threadSearch])
+
   const selectedThread = useMemo(() => {
-    return threads.find(thread => thread.id === selectedThreadId) || null
-  }, [threads, selectedThreadId])
+    if (!selectedThreadId) return filteredThreads[0] || null
+    const existing = threads.find(thread => thread.id === selectedThreadId)
+    if (existing) return existing
+    return filteredThreads[0] || null
+  }, [threads, filteredThreads, selectedThreadId])
+
+  useEffect(() => {
+    const directory: Record<string, { name?: string; initials: string }> = {}
+    const sourceMembers: Array<{ userId: string; name?: string }> = members.length
+      ? members
+      : Array.from(new Set([group.createdBy, ...group.members])).map(userId => ({ userId }))
+
+    sourceMembers.forEach(member => {
+      const displayName = member.name || member.userId
+      directory[member.userId] = {
+        name: member.name,
+        initials: initialsFor(displayName),
+      }
+    })
+
+    if (auth?.userId && !directory[auth.userId]) {
+      directory[auth.userId] = {
+        name: auth.userId,
+        initials: initialsFor(auth.userId),
+      }
+    }
+
+    setUserDirectory(directory)
+  }, [members, group, auth?.userId])
 
   useEffect(() => {
     if (selectedThreadId && !threads.some(thread => thread.id === selectedThreadId)) {
@@ -90,6 +140,18 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
     setSelectedThreadId(null)
     setMessagesState({})
   }, [group.id])
+
+  useEffect(() => {
+    if (!filteredThreads.length) {
+      if (selectedThreadId !== null) {
+        setSelectedThreadId(null)
+      }
+      return
+    }
+    if (!selectedThreadId || !filteredThreads.some(thread => thread.id === selectedThreadId)) {
+      setSelectedThreadId(filteredThreads[0].id)
+    }
+  }, [filteredThreads, selectedThreadId])
 
   useEffect(() => {
     if (!open) return
@@ -275,29 +337,30 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
   const renderThreadMeta = (thread: GroupThread) => {
     const submissionTitle = getSubmissionTitle(thread.relatedSubmissionId)
     const lastMessage = thread.lastMessage
+    const lastActivity = new Date(thread.lastMessageAt || thread.updatedAt).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    const preview = lastMessage
+      ? `${lastMessage.authorId === auth?.userId ? 'You' : lastMessage.authorId}: ${lastMessage.body}`
+      : submissionTitle
+        ? `Linked to ${submissionTitle}`
+        : 'No messages yet'
     return (
       <>
-        {submissionTitle && (
-          <span className="discussion-thread-tag">
-            📄 {submissionTitle}
+        <div className="thread-item-top">
+          <span className="thread-item-title">{thread.title}</span>
+          <span className="thread-item-time">{lastActivity}</span>
+        </div>
+        <div className="thread-item-bottom">
+          <span className="thread-item-preview">
+            {preview.length > 70 ? `${preview.slice(0, 67)}…` : preview}
           </span>
-        )}
-        <span className="discussion-thread-count">
-          💬 {thread.messageCount}
-        </span>
-        <span className="discussion-thread-updated">
-          {new Date(thread.lastMessageAt || thread.updatedAt).toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </span>
-        {lastMessage && (
-          <span className="discussion-thread-preview">
-            <strong>{lastMessage.authorId === auth?.userId ? 'You' : lastMessage.authorId}:</strong>{' '}
-            {lastMessage.body.slice(0, 60)}
-            {lastMessage.body.length > 60 ? '…' : ''}
+          <span className="thread-item-count">{thread.messageCount}</span>
+        </div>
+        {submissionTitle && (
+          <span className="thread-item-tag">
+            {submissionTitle}
           </span>
         )}
       </>
@@ -307,61 +370,65 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
   const currentMessages = selectedThreadId ? messagesState[selectedThreadId] || [] : []
 
   return (
-    <div className="group-discussion-panel">
-      <div className="discussion-header">
-        <div>
-          <h3>{title || 'Discussion Threads'}</h3>
-          <p>Collaborate with your group and keep conversations tied to deliverables.</p>
+    <div className="conversation-pane">
+      <header className="conversation-header">
+        <div className="conversation-title">
+          <div className="conversation-avatar">{group.name.slice(0, 2).toUpperCase()}</div>
+          <div>
+            <h2>{title || group.name}</h2>
+            <p>
+              {group.members.length} member{group.members.length === 1 ? '' : 's'} · {threads.length} thread{threads.length === 1 ? '' : 's'}
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          className="btn-discussion"
-          onClick={() => setShowNewThreadForm(prev => !prev)}
-        >
-          {showNewThreadForm ? 'Cancel' : '➕ New Thread'}
-        </button>
-      </div>
+        <div className="conversation-actions">
+          <button type="button" onClick={() => setShowNewThreadForm(prev => !prev)}>
+            {showNewThreadForm ? 'Close' : 'New thread'}
+          </button>
+        </div>
+      </header>
 
       {showNewThreadForm && (
-        <form className="discussion-new-thread" onSubmit={handleCreateThread}>
-          <div className="discussion-field">
-            <label>Thread title *</label>
-            <input
-              value={newThreadTitle}
-              onChange={e => setNewThreadTitle(e.target.value)}
-              placeholder="e.g. Sprint 3 deliverables review"
-            />
+        <form className="thread-form" onSubmit={handleCreateThread}>
+          <div className="thread-form-grid">
+            <label>
+              Title *
+              <input
+                value={newThreadTitle}
+                onChange={e => setNewThreadTitle(e.target.value)}
+                placeholder="e.g. Sprint planning"
+              />
+            </label>
+            <label>
+              Linked submission
+              <select
+                value={newThreadSubmissionId}
+                onChange={e => setNewThreadSubmissionId(e.target.value)}
+              >
+                <option value="">None</option>
+                {groupSubmissions.map(sub => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.title}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          <div className="discussion-field">
-            <label>Link to submission (optional)</label>
-            <select
-              value={newThreadSubmissionId}
-              onChange={e => setNewThreadSubmissionId(e.target.value)}
-            >
-              <option value="">-- General discussion --</option>
-              {groupSubmissions.map(sub => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="discussion-field">
-            <label>Initial message</label>
+          <label>
+            Opening message
             <textarea
               value={initialMessage}
               onChange={e => setInitialMessage(e.target.value)}
               rows={3}
-              placeholder="Provide context and next steps for this thread."
+              placeholder="Add context and next steps for the group."
             />
-          </div>
-          <div className="discussion-actions">
-            <button type="submit" className="btn btn-primary" disabled={creatingThread}>
-              {creatingThread ? 'Creating...' : 'Create thread'}
+          </label>
+          <div className="thread-form-actions">
+            <button type="submit" className="primary" disabled={creatingThread}>
+              {creatingThread ? 'Creating…' : 'Create thread'}
             </button>
             <button
               type="button"
-              className="btn btn-ghost"
               onClick={() => {
                 setShowNewThreadForm(false)
                 setNewThreadTitle('')
@@ -378,46 +445,48 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
 
       {threadsError && <div className="discussion-error">{threadsError}</div>}
 
-      <div className="discussion-content">
-        <aside className="discussion-sidebar">
-          {loadingThreads && !threads.length ? (
-            <div className="discussion-placeholder">Loading threads…</div>
-          ) : threads.length === 0 ? (
-            <div className="discussion-placeholder">
-              No threads yet. Start the first conversation for this group.
-            </div>
-          ) : (
-            <ul className="discussion-thread-list">
-              {threads.map(thread => (
-                <li key={thread.id}>
-                  <button
-                    type="button"
-                    className={`discussion-thread-item ${thread.id === selectedThreadId ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedThreadId(thread.id)
-                    }}
-                  >
-                    <span className="discussion-thread-title">{thread.title}</span>
-                    {renderThreadMeta(thread)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-        <section className="discussion-main">
-          {selectedThread ? (
-            <>
-              <header className="discussion-thread-header">
-                <div>
-                  <h4>{selectedThread.title}</h4>
-                  {selectedThread.relatedSubmissionId && (
-                    <span className="discussion-thread-linked">
-                      Linked submission: {getSubmissionTitle(selectedThread.relatedSubmissionId) || selectedThread.relatedSubmissionId}
-                    </span>
-                  )}
-                </div>
-                <span className="discussion-thread-meta">
+      <section className="thread-strip">
+        <div className="thread-strip-head">
+          <div className="thread-strip-title">
+            <span>Threads</span>
+            <span className="badge">{threads.length}</span>
+          </div>
+          <input
+            type="search"
+            placeholder="Search threads"
+            value={threadSearch}
+            onChange={e => setThreadSearch(e.target.value)}
+          />
+        </div>
+        {loadingThreads && !threads.length ? (
+          <div className="thread-empty">Loading threads…</div>
+        ) : filteredThreads.length === 0 ? (
+          <div className="thread-empty">
+            {threadSearch ? 'No threads match your search.' : 'No threads yet. Start the first one!'}
+          </div>
+        ) : (
+          <div className="thread-carousel">
+            {filteredThreads.map(thread => (
+              <button
+                key={thread.id}
+                type="button"
+                className={`thread-card ${thread.id === selectedThreadId ? 'active' : ''}`}
+                onClick={() => setSelectedThreadId(thread.id)}
+              >
+                {renderThreadMeta(thread)}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="chat-section">
+        {selectedThread ? (
+          <>
+            <header className="chat-thread-header">
+              <div>
+                <h3>{selectedThread.title}</h3>
+                <p>
                   Started {new Date(selectedThread.createdAt).toLocaleString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -425,63 +494,72 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
                     minute: '2-digit',
                   })}{' '}
                   by {selectedThread.createdBy === auth?.userId ? 'you' : selectedThread.createdBy}
-                </span>
-              </header>
-
-              <div className="discussion-messages">
-                {loadingMessages && !currentMessages.length ? (
-                  <div className="discussion-placeholder">Loading messages…</div>
-                ) : currentMessages.length === 0 ? (
-                  <div className="discussion-placeholder">
-                    No messages yet. Be the first to contribute.
-                  </div>
-                ) : (
-                  currentMessages.map(message => (
-                    <article
-                      key={message.id}
-                      className={`discussion-message ${message.authorId === auth?.userId ? 'is-own' : ''}`}
-                    >
-                      <header>
-                        <span className="discussion-message-author">
-                          {message.authorId === auth?.userId ? 'You' : message.authorId}
-                        </span>
-                        <span className="discussion-message-time">
-                          {new Date(message.createdAt).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </header>
-                      <p>{message.body}</p>
-                    </article>
-                  ))
-                )}
+                </p>
               </div>
+              {selectedThread.relatedSubmissionId && (
+                <span className="linked-pill">
+                  Linked: {getSubmissionTitle(selectedThread.relatedSubmissionId) || selectedThread.relatedSubmissionId}
+                </span>
+              )}
+            </header>
 
-              <form className="discussion-reply" onSubmit={handlePostMessage}>
-                <textarea
-                  value={newMessageDraft}
-                  onChange={e => setNewMessageDraft(e.target.value)}
-                  placeholder="Write a message to the group..."
-                  rows={3}
-                />
-                {messageError && <div className="discussion-error">{messageError}</div>}
-                <div className="discussion-actions">
-                  <button type="submit" className="btn btn-primary" disabled={postingMessage}>
-                    {postingMessage ? 'Sending…' : 'Send message'}
-                  </button>
+            <div className="chat-log">
+              {loadingMessages && !currentMessages.length ? (
+                <div className="chat-empty">Loading messages…</div>
+              ) : currentMessages.length === 0 ? (
+                <div className="chat-empty">
+                  No messages yet. Be the first to contribute.
                 </div>
-              </form>
-            </>
-          ) : (
-            <div className="discussion-placeholder">
-              Select a thread to view conversation history.
+              ) : (
+                currentMessages.map(message => {
+                  const authorInfo = userDirectory[message.authorId] || {
+                    name: message.authorId,
+                    initials: initialsFor(message.authorId),
+                  }
+                  const authorName = authorInfo.name || message.authorId
+                  return (
+                    <div
+                      key={message.id}
+                      className={`chat-bubble ${message.authorId === auth?.userId ? 'mine' : ''}`}
+                    >
+                      <div className="chat-bubble-header">
+                        <div className="chat-bubble-avatar">{authorInfo.initials}</div>
+                        <div className="chat-bubble-meta">
+                          <span className="chat-bubble-name">{authorName}</span>
+                          <time>
+                            {new Date(message.createdAt).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </time>
+                        </div>
+                      </div>
+                      <p>{message.body}</p>
+                    </div>
+                  )
+                })
+              )}
             </div>
-          )}
-        </section>
-      </div>
+
+            <form className="chat-composer" onSubmit={handlePostMessage}>
+              <textarea
+                value={newMessageDraft}
+                onChange={e => setNewMessageDraft(e.target.value)}
+                placeholder="Write a message to the group…"
+                rows={2}
+              />
+              {messageError && <div className="discussion-error">{messageError}</div>}
+              <button type="submit" disabled={postingMessage}>
+                {postingMessage ? 'Sending…' : 'Send'}
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="chat-empty large">Select a thread above to view conversation history.</div>
+        )}
+      </section>
     </div>
   )
 }

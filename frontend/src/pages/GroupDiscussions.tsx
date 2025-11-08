@@ -47,6 +47,7 @@ export default function GroupDiscussionsPage({ role }: GroupDiscussionsPageProps
   const [groupsError, setGroupsError] = useState<string | null>(null)
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [groupSearch, setGroupSearch] = useState('')
 
   useEffect(() => {
     if (!auth) return
@@ -91,6 +92,15 @@ export default function GroupDiscussionsPage({ role }: GroupDiscussionsPageProps
     loadSubmissions()
   }, [auth])
 
+  const filteredGroups = useMemo(() => {
+    if (!groupSearch.trim()) return groups
+    const lowered = groupSearch.trim().toLowerCase()
+    return groups.filter(group =>
+      group.name.toLowerCase().includes(lowered) ||
+      (group.description ?? '').toLowerCase().includes(lowered)
+    )
+  }, [groups, groupSearch])
+
   useEffect(() => {
     if (!groups.length) {
       setSelectedGroupId(null)
@@ -120,6 +130,14 @@ export default function GroupDiscussionsPage({ role }: GroupDiscussionsPageProps
     return groups.find(g => g.id === selectedGroupId) || null
   }, [groups, selectedGroupId])
 
+  const selectedGroupMembers = useMemo(() => {
+    if (!selectedGroup) return []
+    const ids = new Set<string>()
+    ids.add(selectedGroup.createdBy)
+    selectedGroup.members.forEach(id => ids.add(id))
+    return Array.from(ids).map(userId => ({ userId }))
+  }, [selectedGroup])
+
   function handleSelectGroup(groupId: string) {
     setSelectedGroupId(groupId)
     setSearchParams({ group: groupId })
@@ -131,67 +149,97 @@ export default function GroupDiscussionsPage({ role }: GroupDiscussionsPageProps
 
   return (
     <Layout role={role}>
-      <div className="discussions-page">
-        <div className="discussions-hero">
-          <div>
-            <h1>{role === 'professor' ? 'Group Discussions Control Center' : 'Group Discussions Workspace'}</h1>
+      <div className="discussions-layout">
+        <header className="discussions-header">
+          <div className="discussions-header-left">
+            <div className="discussions-breadcrumb">
+              <button type="button" onClick={goToDashboard}>← Dashboard</button>
+              <span>/</span>
+              <span>Discussions</span>
+            </div>
+            <h1>{role === 'professor' ? 'Professor Discussions' : 'Student Discussions'}</h1>
             <p>
-              Coordinate deliverables, align milestones, and keep every message tied to coursework—all without leaving
-              this dedicated space.
+              Switch between collaboration groups, monitor activity and keep the conversation aligned with coursework.
             </p>
           </div>
-          <button type="button" className="btn-discussion" onClick={goToDashboard}>
-            ← Back to dashboard
-          </button>
-        </div>
+          <div className="discussions-header-right">
+            <div className="header-indicator">
+              <span className="indicator-dot"></span>
+              Live sync enabled
+            </div>
+            <div className="header-meta">
+              <strong>{groups.length}</strong>
+              <span>Active groups</span>
+            </div>
+          </div>
+        </header>
 
         {groupsError && <div className="discussion-error">{groupsError}</div>}
 
-        <div className="discussions-grid">
-          <aside className="discussions-group-column">
-            <div className="discussions-group-header">
-              <h2>Your groups</h2>
-              {groupsLoading ? (
-                <span className="discussions-group-meta">Loading…</span>
-              ) : (
-                <span className="discussions-group-meta">
-                  {groups.length} group{groups.length === 1 ? '' : 's'}
-                </span>
-              )}
+        <div className="discussions-shell">
+          <aside className="group-column">
+            <div className="group-column-header">
+              <div>
+                <h2>Groups</h2>
+                <span>{groups.length ? `${groups.length} total` : 'No groups yet'}</span>
+              </div>
+              <button
+                type="button"
+                className="group-refresh"
+                onClick={() => setGroups(prev => [...prev])}
+                title="Refresh groups"
+              >
+                ⟳
+              </button>
             </div>
-            <div className="discussions-group-list">
-              {groupsLoading && groups.length === 0 ? (
-                <div className="discussion-placeholder">Fetching your groups…</div>
-              ) : groups.length === 0 ? (
-                <div className="discussion-placeholder">
-                  {role === 'professor'
-                    ? 'No groups yet. Students will appear here once they create collaboration groups.'
-                    : 'No groups yet. Create a group from your dashboard to start collaborating.'}
+
+            <div className="group-search">
+              <input
+                type="search"
+                placeholder="Search group or description"
+                value={groupSearch}
+                onChange={e => setGroupSearch(e.target.value)}
+              />
+            </div>
+
+            <div className="group-list">
+              {groupsLoading && filteredGroups.length === 0 ? (
+                <div className="group-empty">Loading groups…</div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="group-empty">
+                  {groupSearch
+                    ? 'No groups match your search.'
+                    : role === 'professor'
+                      ? 'When students create teams they will appear here automatically.'
+                      : 'Create a collaboration group from your dashboard to start chatting.'}
                 </div>
               ) : (
-                groups.map(group => {
+                filteredGroups.map(group => {
                   const isSelected = group.id === selectedGroupId
                   return (
                     <button
                       key={group.id}
                       type="button"
-                      className={`discussions-group-card ${isSelected ? 'selected' : ''}`}
+                      className={`group-row ${isSelected ? 'selected' : ''}`}
                       onClick={() => handleSelectGroup(group.id)}
                     >
-                      <div className="discussions-group-card-header">
-                        <h3>{group.name}</h3>
-                        <span>{group.members.length} member{group.members.length === 1 ? '' : 's'}</span>
+                      <div className="group-avatar">
+                        {group.name.slice(0, 2).toUpperCase()}
                       </div>
-                      {group.description && <p>{group.description}</p>}
-                      <div className="discussions-group-card-meta">
-                        <span>
-                          Created{' '}
-                          {new Date(group.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </span>
-                        <span>Owner: {group.createdBy === auth?.userId ? 'You' : group.createdBy}</span>
+                      <div className="group-row-body">
+                        <div className="group-row-title">
+                          <span>{group.name}</span>
+                          <time>
+                            {new Date(group.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </time>
+                        </div>
+                        <div className="group-row-subtitle">
+                          <span>{group.members.length} member{group.members.length === 1 ? '' : 's'}</span>
+                          {group.description && <span className="group-row-description">{group.description}</span>}
+                        </div>
                       </div>
                     </button>
                   )
@@ -200,20 +248,21 @@ export default function GroupDiscussionsPage({ role }: GroupDiscussionsPageProps
             </div>
           </aside>
 
-          <section className="discussions-thread-column">
+          <section className="conversation-column">
             {selectedGroup ? (
               <GroupDiscussionPanel
                 key={selectedGroup.id}
                 group={selectedGroup}
                 open
                 submissions={submissions.filter(sub => sub.groupId === selectedGroup.id)}
-                title={`${selectedGroup.name} • Threads`}
+                title={selectedGroup.name}
+                members={selectedGroupMembers}
               />
             ) : (
-              <div className="discussion-placeholder">
+              <div className="conversation-empty">
                 {groupsLoading
                   ? 'Preparing workspace…'
-                  : 'Select or create a group to begin collaborating.'}
+                  : 'Select a group from the left column to open its conversation.'}
               </div>
             )}
           </section>
