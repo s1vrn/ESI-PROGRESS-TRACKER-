@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import Footer from '../components/Footer'
+import '../styles/auth.css'
 
 type AuthInfo = {
   userId: string
@@ -127,42 +129,87 @@ export default function Login() {
   }
 
   return (
-    <div className="login-hero">
-      <div className="card login-card">
-        <div className="card-body">
-          <h2 style={{ textAlign: 'center', marginBottom: 6 }}>ESI Progress Tracker</h2>
-          <p className="muted" style={{ textAlign: 'center', marginBottom: 24 }}>
-            {isRegistering ? 'Create an account' : 'Sign in to continue'}
-          </p>
-
-          {error && (
-            <div style={{ padding: 12, background: '#fee', color: '#c33', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="grid">
-            <div className="field">
-              <label>I am a</label>
-              <div className="row">
-                <button type="button" className="btn btn-ghost" onClick={() => setRole('student')} style={{ borderColor: role === 'student' ? 'var(--primary)' : 'var(--border)', color: role === 'student' ? 'var(--primary)' : 'var(--muted)', flex: 1 }}>Student</button>
-                <button type="button" className="btn btn-ghost" onClick={() => setRole('professor')} style={{ borderColor: role === 'professor' ? 'var(--primary)' : 'var(--border)', color: role === 'professor' ? 'var(--primary)' : 'var(--muted)', flex: 1 }}>Professor</button>
+    <>
+      <div className="auth-page-wrapper">
+        <aside className="auth-left-panel">
+          <header>
+            <span>ESI Progress Tracker</span>
+            <h1>Reliable submission tracking for ambitious teams.</h1>
+            <p>Coordinate milestones, share feedback, and keep every academic deliverable moving in one shared workspace.</p>
+          </header>
+          <div className="auth-highlights">
+            <div className="auth-highlight">
+              <div className="auth-highlight-icon">⚡️</div>
+              <div>
+                <strong>Frictionless reviews</strong>
+                <span>Professors get compact status cards and real-time progress updates.</span>
               </div>
             </div>
+            <div className="auth-highlight">
+              <div className="auth-highlight-icon">🗂️</div>
+              <div>
+                <strong>Centralised resources</strong>
+                <span>Assignments, templates, and group discussions live in one organised hub.</span>
+              </div>
+            </div>
+            <div className="auth-highlight">
+              <div className="auth-highlight-icon">🔒</div>
+              <div>
+                <strong>ESI-secured access</strong>
+                <span>Only verified @esi.ac.ma accounts can join and contribute.</span>
+              </div>
+            </div>
+          </div>
+        </aside>
 
-            <div className="field">
+        <section className="auth-right-panel">
+          <header>
+            <h2>{isRegistering ? 'Create your account' : 'Welcome back'}</h2>
+            <p>{isRegistering ? 'Enter your ESI details to start collaborating.' : 'Sign in to continue tracking your progress.'}</p>
+          </header>
+
+          <div className="auth-role-toggle">
+            <button
+              type="button"
+              className={role === 'student' ? 'active' : ''}
+              onClick={() => setRole('student')}
+              disabled={loading}
+            >
+              Student
+            </button>
+            <button
+              type="button"
+              className={role === 'professor' ? 'active' : ''}
+              onClick={() => setRole('professor')}
+              disabled={loading}
+            >
+              Professor
+            </button>
+          </div>
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <form className="auth-form" onSubmit={isRegistering ? handleRegister : handleLogin}>
+            <div className="auth-field">
               <label>User ID</label>
-              <input type="text" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder={role === 'student' ? 'e.g., student_alex' : 'e.g., prof_samira'} autoFocus disabled={loading} />
+              <input
+                type="text"
+                value={userId}
+                onChange={e => setUserId(e.target.value)}
+                placeholder={role === 'student' ? 'e.g., student_alex' : 'e.g., prof_samira'}
+                autoFocus
+                disabled={loading}
+              />
             </div>
 
             {isRegistering && (
-              <div className="field">
+              <div className="auth-field">
                 <label>ESI Institutional Email</label>
-                <input 
-                  type="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  placeholder="your.name@esi.ac.ma" 
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="your.name@esi.ac.ma"
                   disabled={loading}
                 />
                 <small>Must be an @esi.ac.ma email address</small>
@@ -171,22 +218,21 @@ export default function Login() {
 
             {isRegistering && role === 'student' && (
               <>
-                <div className="field">
+                <div className="auth-field">
                   <label>Branch *</label>
-                  <input 
-                    type="text" 
-                    value={branch} 
-                    onChange={(e) => setBranch(e.target.value)} 
-                    placeholder="e.g., Computer Science, Software Engineering" 
+                  <input
+                    type="text"
+                    value={branch}
+                    onChange={e => setBranch(e.target.value)}
+                    placeholder="e.g., Computer Science, Software Engineering"
                     disabled={loading}
                   />
-                  <small>Your field of study or major</small>
                 </div>
-                <div className="field">
+                <div className="auth-field">
                   <label>Year *</label>
-                  <select 
-                    value={year} 
-                    onChange={(e) => setYear(e.target.value as 'freshman' | 'second year' | 'third year')} 
+                  <select
+                    value={year}
+                    onChange={e => setYear(e.target.value as 'freshman' | 'second year' | 'third year')}
                     disabled={loading}
                   >
                     <option value="">-- Select your year --</option>
@@ -198,30 +244,43 @@ export default function Login() {
               </>
             )}
 
-            <div className="field">
+            <div className="auth-field">
               <label>Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" disabled={loading} />
-            </div>
-
-            <button type="submit" className="btn" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Please wait...' : (isRegistering ? 'Register' : 'Sign In')}
-            </button>
-
-            <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <button
-                type="button"
-                onClick={() => { setIsRegistering(!isRegistering); setError('') }}
-                className="btn btn-ghost"
-                style={{ fontSize: 14, padding: '6px 12px' }}
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter password"
                 disabled={loading}
-              >
-                {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Register"}
-              </button>
+              />
             </div>
+
+            <button type="submit" className="auth-submit" disabled={loading}>
+              {loading ? 'Please wait…' : isRegistering ? 'Register' : 'Sign In'}
+            </button>
           </form>
-        </div>
+
+          <div className="auth-alt">
+            <span>{isRegistering ? 'Already have an account?' : "Don't have an account?"}</span>{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegistering(!isRegistering)
+                setError('')
+              }}
+              disabled={loading}
+            >
+              {isRegistering ? 'Sign in' : 'Register'}
+            </button>
+          </div>
+
+          <div className="auth-footer">
+            Need help? Contact your academic mentor or reach out to support@esi.ac.ma
+          </div>
+        </section>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }
 
