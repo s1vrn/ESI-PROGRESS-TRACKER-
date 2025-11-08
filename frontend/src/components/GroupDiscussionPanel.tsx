@@ -83,6 +83,7 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
   const [threadSearch, setThreadSearch] = useState('')
   const [userDirectory, setUserDirectory] = useState<Record<string, { name?: string; initials: string }>>({})
   const chatLogRef = useRef<HTMLDivElement | null>(null)
+  const lastMessageCountRef = useRef<Record<string, number>>({})
 
   const groupSubmissions = useMemo(() => {
     return submissions.filter(sub => sub.groupId === group.id)
@@ -175,8 +176,13 @@ export default function GroupDiscussionPanel({ group, open, submissions = [], ti
   }, [open, selectedThreadId, group.id])
 
   useEffect(() => {
-    if (!chatLogRef.current) return
-    chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight
+    if (!chatLogRef.current || !selectedThreadId) return
+    const messages = messagesState[selectedThreadId] || []
+    const previous = lastMessageCountRef.current[selectedThreadId] ?? 0
+    if (messages.length > previous) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight
+    }
+    lastMessageCountRef.current[selectedThreadId] = messages.length
   }, [messagesState, selectedThreadId])
 
   async function fetchThreads(silent = false) {
