@@ -74,6 +74,13 @@ export default function Login() {
         setLoading(false)
         return
       }
+      if (data.role !== role) {
+        setError(
+          `This account is registered as a ${data.role}. Switch the role toggle to “${data.role === 'student' ? 'Student' : 'Professor'}” to continue.`
+        )
+        setLoading(false)
+        return
+      }
       saveAuth({ userId: data.userId, role: data.role })
       navigate(data.role === 'student' ? '/student' : '/professor')
     } catch (err) {

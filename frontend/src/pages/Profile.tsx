@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import { getAuth } from './Login'
@@ -42,29 +42,45 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const editingRef = useRef(false)
+
+  const loadProfile = async () => {
+    if (!auth) return
+    try {
+      const headers = getHeaders()
+      const res = await fetch(`${API}/api/user/profile`, { headers })
+      if (!res.ok) {
+        throw new Error('Failed to load profile')
+      }
+      const data = (await res.json()) as UserProfile
+      setProfile(data)
+      if (!editingRef.current) {
+        setName(data.name || '')
+        setBranch(data.branch || '')
+        setYear(data.year || '')
+        setProfilePicture(data.profilePicture || '')
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile', err)
+      setError('Unable to load profile details right now.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    editingRef.current = editing
+  }, [editing])
 
   useEffect(() => {
     if (!auth) {
       navigate('/login')
       return
     }
-    const headers = getHeaders()
-    fetch(`${API}/api/user/profile`, { headers })
-      .then(r => r.json())
-      .then(data => {
-        setProfile(data)
-        setName(data.name || '')
-        setBranch(data.branch || '')
-        setYear(data.year || '')
-        setProfilePicture(data.profilePicture || '')
-        setLoading(false)
-      })
-      .catch(() => {
-        setLoading(false)
-      })
+    loadProfile()
   }, [auth, navigate])
 
-  function handleSave() {
+  async function handleSave() {
     setError('')
     setSuccess('')
     setSaving(true)
@@ -82,36 +98,33 @@ export default function Profile() {
     console.log('Saving profile with data:', body)
     console.log('Current state - name:', name, 'branch:', branch, 'year:', year)
     
-    fetch(`${API}/api/user/profile`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(body)
-    })
-      .then(async (r) => {
-        if (!r.ok) {
-          const errorData = await r.json().catch(() => ({ error: 'Failed to update profile' }))
-          throw new Error(errorData.error || `Failed to update profile (status ${r.status})`)
-        }
-        return r.json()
+    try {
+      const response = await fetch(`${API}/api/user/profile`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body)
       })
-      .then(data => {
-        console.log('Profile updated successfully:', data)
-        setProfile(data)
-        // Update local state with saved values
-        setName(data.name || '')
-        setBranch(data.branch || '')
-        setYear(data.year || '')
-        setProfilePicture(data.profilePicture || '')
-        setEditing(false)
-        setSuccess('Profile updated successfully!')
-        setTimeout(() => setSuccess(''), 3000)
-        setSaving(false)
-      })
-      .catch(err => {
-        console.error('Save error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to update profile')
-        setSaving(false)
-      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update profile' }))
+        throw new Error(errorData.error || `Failed to update profile (status ${response.status})`)
+      }
+
+      const updated = (await response.json()) as UserProfile
+      setProfile(updated)
+      setName(updated.name || '')
+      setBranch(updated.branch || '')
+      setYear(updated.year || '')
+      setProfilePicture(updated.profilePicture || '')
+      setEditing(false)
+      setSuccess('Profile updated successfully!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('Save error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handlePictureUpload(e: React.ChangeEvent<HTMLInputElement>) {

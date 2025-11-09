@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import Navbar from './Navbar'
 import DashboardSidebar from './DashboardSidebar'
+import Footer from './Footer'
 
 type LayoutProps = {
   right?: React.ReactNode
@@ -42,6 +43,7 @@ export default function Layout({ right, children, role = 'student', showSidebar 
         </main>
         {right}
       </div>
+      <Footer />
     </div>
   )
 }
